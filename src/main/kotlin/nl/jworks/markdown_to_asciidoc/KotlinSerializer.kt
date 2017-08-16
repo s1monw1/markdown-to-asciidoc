@@ -205,23 +205,16 @@ class ToAsciiDocSerializerKt @JvmOverloads constructor(private var rootNode: Roo
         printer.println().println()
     }
 
-    override fun visit(node: QuotedNode) {
-        when (node.type!!) {
-            QuotedNode.Type.DoubleAngle -> {
-                printer.print("«")
-                visitChildren(node)
-                printer.print("»")
+    override fun visit(node: QuotedNode) = visitWithPrinter {
+        node.type?.let { t ->
+            val (pre, suf) = when (t) {
+                QuotedNode.Type.DoubleAngle -> "«" to "»"
+                QuotedNode.Type.Double -> "\"" to "\""
+                QuotedNode.Type.Single -> "'" to "'"
             }
-            QuotedNode.Type.Double -> {
-                printer.print("\"")
-                visitChildren(node)
-                printer.print("\"")
-            }
-            QuotedNode.Type.Single -> {
-                printer.print("'")
-                visitChildren(node)
-                printer.print("'")
-            }
+            print(pre)
+            visitChildren(node)
+            print(suf)
         }
     }
 
@@ -393,7 +386,7 @@ class ToAsciiDocSerializerKt @JvmOverloads constructor(private var rootNode: Roo
         }
     }
 
-    private fun visitWithPrinter(block: Printer.() -> Unit) = printer.block()
+    private inline fun visitWithPrinter(block: Printer.() -> Unit) = printer.block()
 
     override fun visit(node: VerbatimNode) = visitWithPrinter {
         println()
@@ -442,15 +435,15 @@ class ToAsciiDocSerializerKt @JvmOverloads constructor(private var rootNode: Roo
      */
     private fun cleanAst(node: Node) {
         val children = node.children
-        for (c in children.withIndex()) {
-            val childNode = c.value
-            val singleSuperNode = (childNode.javaClass == SuperNode::class.java && childNode.children.size == 1)
-            if (childNode is RootNode || singleSuperNode) {
-                children[c.index] = childNode.children[0]
+        for ((idx, c) in children.withIndex()) {
+            val singleSuperNode = (c.javaClass == SuperNode::class.java && c.children.size == 1)
+            if (c is RootNode || singleSuperNode) {
+                children[idx] = c.children[0]
             }
-            cleanAst(childNode)
+            cleanAst(c)
         }
     }
+
 
     private fun printNodeSurroundedBy(node: AbstractNode, token: String) {
         printer.print(token)
